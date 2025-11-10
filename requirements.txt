@@ -1,0 +1,11 @@
+fpdf2
+state
+langchain-google-genai
+langgraph
+protobuf
+streamlit
+google
+google.generativeai
+google
+PyPDF2
+docx

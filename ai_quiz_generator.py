@@ -6,6 +6,7 @@ from typing import TypedDict, Optional, List, Dict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 import re
+import exceptions
 
 # ------------------ Backend / LLM setup ------------------
 try:
@@ -314,7 +315,7 @@ def display_quiz(state: QuizState) -> QuizState:
                 <div class='quiz-option'>D) {q['options']['D']}</div>
             </div>
         """, unsafe_allow_html=True)
-        
+
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("<hr>", unsafe_allow_html=True)
 

@@ -6,7 +6,6 @@ from typing import TypedDict, Optional, List, Dict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 import re
-import exceptions
 
 # ------------------ Backend / LLM setup ------------------
 try:

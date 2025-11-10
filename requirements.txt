@@ -9,4 +9,3 @@ google.generativeai
 google
 PyPDF2
 docx
-exceptions

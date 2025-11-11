@@ -215,13 +215,8 @@ def generate_quiz_node(state: QuizState) -> QuizState:
     Text:
     {text[:4000]}
     """
-
-    try:
-        result = llm.invoke(prompt)
-        output_text = getattr(result, "content", None) or getattr(result, "output_text", "")
-    except Exception:
-        output_text = ""
-
+    result = llm.invoke(prompt)
+    output_text = getattr(result, "content", None) or getattr(result, "output_text", "")
     # Normalize output
     output_text = re.sub(r'(?i)question\s*\d*[:.]', lambda m: f"Q", output_text)
     output_text = output_text.replace("Option ", "").replace("Answer:", "Answer:")

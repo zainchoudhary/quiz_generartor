@@ -7,6 +7,11 @@ from typing import TypedDict, Optional, List, Dict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 
+try:
+    open("file.txt")
+except FileNotFoundError:
+    print("File not found!")
+
 # ------------------ LLM Setup ------------------
 try:
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")

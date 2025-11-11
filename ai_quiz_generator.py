@@ -7,18 +7,7 @@ from typing import TypedDict, Optional, List, Dict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 
-try:
-    open("file.txt")
-except FileNotFoundError:
-    print("File not found!")
-
-# ------------------ LLM Setup ------------------
-try:
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
-except Exception:
-    st.error("⚠️ GOOGLE_API_KEY not found. LLM features disabled.")
-    llm = None
-
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 st.set_page_config(page_title="🧠 AI Quiz Generator", layout="centered")
 
 st.markdown("""

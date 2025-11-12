@@ -5,7 +5,7 @@ from io import BytesIO
 import re
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# ------------------ LLM Setup ------------------
+# ------------------     LLM Setup ------------------
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
 # ------------------ Page Config ------------------
@@ -235,8 +235,7 @@ if st.button("🚀 Generate Quiz"):
         if st.session_state.file and not use_text:
             st.session_state.text = extract_text(st.session_state.file)
         generate_quiz()
-        display_quiz()
 
-# Display quiz if already generated (stateful)
+# Always display after generation
 if st.session_state.quiz_data:
     display_quiz()

@@ -16,14 +16,15 @@ except Exception:
 
 st.set_page_config(page_title="🧠 AI Quiz Generator", layout="centered")
 
+# ------------------ Custom CSS ------------------
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
 
 :root {
     --primary-accent: #33CCFF;
-    --secondary-dark: #0B1A2B;    /* Darker navy for MCQ options */
-    --background-main: #162231;  /* Dark navy background */
+    --secondary-dark: #0B1A2B;
+    --background-main: #001f3f;
     --card-bg-light: #162231;
     --text-color: #F0F5FA;
     --muted-text: #9FB8C9;
@@ -38,18 +39,35 @@ body, .stApp {
 
 header { visibility: hidden; height: 0; }
 
-h1 {
-    text-align: center;
-    font-size: 2.8em;
-    font-weight: 700;
-    color: var(--primary-accent);
-    margin-bottom: 5px;
-}
-
 p { 
     text-align: center; 
     color: var(--muted-text);
     font-size: 1.1em;
+}
+
+/* --- Upgraded Neon Title with Navy Blue --- */
+.neon-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 4em;
+    font-weight: 900;
+    text-align: center;
+    letter-spacing: 2px;
+    background: linear-gradient(120deg, #0B1A2B, #00FFE0, #33CCFF); /* Navy + cyan gradient */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 
+        0 0 5px #0B1A2B,
+        0 0 10px #00FFE0,
+        0 0 20px #33CCFF,
+        0 0 30px #33CCFF,
+        0 0 40px #00FFE0,
+        0 0 55px #33CCFF,
+        0 0 75px #33CCFF;
+}
+
+@keyframes flicker {
+    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+    20%, 22%, 24%, 55% { opacity: 0.4; }
 }
 
 /* Floating Bubbles Animation */
@@ -98,46 +116,37 @@ p {
     color: var(--text-color);
 }
 .quiz-option:hover {
-    background-color: #1F3B5A;  /* Solid hover color for visibility */
-    color: #33CCFF;  /* Text turns accent color on hover */
+    background-color: #1F3B5A;
+    color: #33CCFF;
     transform: translateX(5px);
 }
 
-/* --- BUTTON STYLES (Targeting Download and Generate Quiz only) --- */
-
-/* Base Button Style (Applied to Download and Generate Quiz buttons) */
+/* Buttons Styling */
 .stDownloadButton button, 
 .stButton button { 
-    background: linear-gradient(135deg, #0B1A2B, #162231) !important;  /* Dark navy gradient */
-    color: #33CCFF !important;  /* Accent text color */
+    background: linear-gradient(135deg, #0B1A2B, #162231) !important;
+    color: #33CCFF !important;
     font-weight: 700;
     font-size: 1.05em;
     padding: 12px 28px !important;
     border-radius: 20px !important;
-    border: 2px solid #33CCFF !important; /* Optional border for premium look */
+    border: 2px solid #33CCFF !important;
     box-shadow: 0 5px 20px rgba(0,0,0,0.5);
     transition: all 0.3s ease;
 }
-
-/* Hover Style (Applied to Download and Generate Quiz buttons) */
 .stDownloadButton button:hover,
 .stButton button:hover {
     box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-    background: linear-gradient(135deg, #162231, #0B1A2B); /* Slight hover gradient shift */
-    color: #00FFE0 !important;  /* Hover text accent */
-    transform: scale(1.05); /* Animation */
+    background: linear-gradient(135deg, #162231, #0B1A2B);
+    color: #00FFE0 !important;
+    transform: scale(1.05);
 }
-
-/* File uploader button styling has been removed to revert to default look */
-
-/* --------------------------------------------------------------------------------- */
-
 </style>
 
 <div id="bubbles"></div>
 
 <script>
-const colors = ['#33CCFF','#00FFE0','#FF33CC','#FFDD33','#33FFAA'];
+const colors = ['#00FFE0','#33CCFF','#FF33CC','#FFDD33','#33FFAA'];
 for(let i=0;i<30;i++){
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
@@ -153,9 +162,8 @@ for(let i=0;i<30;i++){
 </script>
 """, unsafe_allow_html=True)
 
-
-
-st.markdown("<h1>🧠 AI Quiz Generator</h1>", unsafe_allow_html=True)
+# --- Neon Title (No Blink) ---
+st.markdown("<h1 class='neon-title'>🧠 AI Quiz Generator</h1>", unsafe_allow_html=True)
 st.markdown("<p>Upload a PDF/DOCX or type a topic to generate MCQs</p>", unsafe_allow_html=True)
 
 
@@ -166,25 +174,20 @@ class QuizState(TypedDict, total=False):
     quiz_data: List[Dict]
     num_mcqs: int
 
-
 graph = StateGraph(QuizState)
 
-
-# ---------- Node: Upload ----------
+# ---------- Node Functions ----------
 def upload_node(state: QuizState) -> QuizState:
-    use_text = st.checkbox("Or type a topic manually")
+    use_text = st.checkbox("Choose Topic Manually")
     file = None
     text_input = ""
     if not use_text:
-        # File uploader button uses default Streamlit styling
         file = st.file_uploader("📂 Upload PDF or DOCX", type=["pdf", "docx"])
     else:
         text_input = st.text_area("Enter topic or text", height=150)
     num_mcqs = st.number_input("Number of MCQs", 1, 50, state.get("num_mcqs", 5), 1)
     return {"file": file, "text": text_input, "num_mcqs": int(num_mcqs)}
 
-
-# ---------- Node: Extract Text ----------
 def extract_text_node(state: QuizState) -> QuizState:
     file = state.get("file")
     text = state.get("text", "")
@@ -195,7 +198,6 @@ def extract_text_node(state: QuizState) -> QuizState:
         doc = Document(file)
         text = "\n".join([p.text for p in doc.paragraphs])
     return {"file": file, "text": text, "num_mcqs": state.get("num_mcqs", 5)}
-
 
 def generate_quiz_node(state: QuizState) -> QuizState:
     text = state.get("text", "").strip()
@@ -228,25 +230,16 @@ def generate_quiz_node(state: QuizState) -> QuizState:
     except Exception:
         output_text = ""
 
-    # Normalize output
     output_text = re.sub(r'(?i)question\s*\d*[:.]', lambda m: f"Q", output_text)
     output_text = output_text.replace("Option ", "").replace("Answer:", "Answer:")
 
-    # Flexible pattern to capture full text of questions and options
-    pattern = r"""Q\d*[\.\)]?\s*([\s\S]*?)      # Question text
-                  \s*A[\)\.:]\s*([\s\S]*?)      # Option A
-                  \s*B[\)\.:]\s*([\s\S]*?)      # Option B
-                  \s*C[\)\.:]\s*([\s\S]*?)      # Option C
-                  \s*D[\)\.:]\s*([\s\S]*?)      # Option D
-                  \s*Answer[:\s]*([ABCD])       # Correct answer
-                """
+    pattern = r"""Q\d*[\.\)]?\s*([\s\S]*?)\s*A[\)\.:]\s*([\s\S]*?)\s*B[\)\.:]\s*([\s\S]*?)\s*C[\)\.:]\s*([\s\S]*?)\s*D[\)\.:]\s*([\s\S]*?)\s*Answer[:\s]*([ABCD])"""
     matches = re.findall(pattern, output_text, re.IGNORECASE | re.VERBOSE)
 
     quiz_data = []
     for q in matches:
         question_text, A, B, C, D, ans = q
-        # Clean up while keeping all characters (no first-letter lost)
-        clean = lambda s: re.sub(r'\s+', ' ', s)  # collapse multiple spaces but keep all letters
+        clean = lambda s: re.sub(r'\s+', ' ', s)
         quiz_data.append({
             "question": clean(question_text),
             "options": {
@@ -263,7 +256,6 @@ def generate_quiz_node(state: QuizState) -> QuizState:
 
     return {"text": text, "num_mcqs": num_mcqs, "quiz_data": quiz_data}
 
-
 def display_quiz_node(state: QuizState) -> QuizState:
     quiz_data = state.get("quiz_data", [])
     if not quiz_data:
@@ -271,12 +263,10 @@ def display_quiz_node(state: QuizState) -> QuizState:
         return {"quiz_data": []}
 
     st.subheader("✅ Quiz Generated!")
-
-    # Invisible placeholder to fix first-letter rendering issue in Streamlit
     st.markdown("<span style='display:none'>.</span>", unsafe_allow_html=True)
 
     for i, q in enumerate(quiz_data):
-        question_text = q['question'].strip()  # safe to strip now
+        question_text = q['question'].strip()
         st.markdown(f"""
         <div class='quiz-card' style='animation-delay:{i * 0.2}s'>
             <div class='quiz-question'>Q{i + 1}. {question_text}</div>
@@ -301,11 +291,9 @@ def display_quiz_node(state: QuizState) -> QuizState:
         buf = BytesIO()
         doc.save(buf)
         buf.seek(0)
-        # Download button is styled
         st.download_button("⬇️ Download as Word", buf, "AI_Quiz.docx")
 
     return {"quiz_data": quiz_data}
-
 
 # ---------- Build Graph ----------
 graph.add_node("upload_node", upload_node)
@@ -324,7 +312,6 @@ app = graph.compile()
 # ---------- Streamlit trigger ----------
 state = {"file": None, "text": "", "quiz_data": [], "num_mcqs": 5}
 updated = upload_node(state)
-# The Generate Quiz button is styled
 if st.button("🚀 Generate Quiz"):
     with st.spinner("Generating quiz... please wait"):
         updated = extract_text_node(updated)

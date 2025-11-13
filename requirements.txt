@@ -1,3 +1,5 @@
+faiss-cpu
+sentence-transformers
 streamlit
 numpy
 PyPDF2

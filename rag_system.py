@@ -9,6 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
 
+
 class RAG:
     """
     RAG pipeline components: Chunking, Embedding, Indexing, Retrieval, and Generation.

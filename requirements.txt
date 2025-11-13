@@ -1,4 +1,5 @@
 faiss-cpu
+faiss
 sentence-transformers
 numpy
 streamlit

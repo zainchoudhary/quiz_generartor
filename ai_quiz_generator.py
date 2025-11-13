@@ -6,6 +6,7 @@ from io import BytesIO
 from langgraph.graph import StateGraph, END
 from rag_system import RAG
 import hashlib
+import faiss
 
 # ------------------ Caching RAG instance ------------------
 @st.cache_resource

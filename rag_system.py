@@ -4,7 +4,6 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from langchain_google_genai import ChatGoogleGenerativeAI
-
 # Initialize LLM
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 

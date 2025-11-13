@@ -1,7 +1,7 @@
-streamlit==1.27.0
+streamlit
 numpy
 PyPDF2
 python-docx
 regex
-langchain-google-genai==0.0.8
-langgraph==0.0.6
+langchain-google-genai
+langgraph

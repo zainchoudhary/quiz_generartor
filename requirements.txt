@@ -1,7 +1,6 @@
 faiss-cpu
 sentence-transformers
 numpy
-faiss
 streamlit
 PyPDF2
 python-docx

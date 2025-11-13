@@ -1,4 +1,3 @@
-# main_app.py
 import streamlit as st
 from PyPDF2 import PdfReader
 from docx import Document

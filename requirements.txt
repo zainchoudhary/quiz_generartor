@@ -1,9 +1,7 @@
 streamlit==1.27.0
-PyPDF2==3.1.1
-python-docx==0.8.12
-regex==2023.11.22
-sentence-transformers==2.2.2
-torch==2.1.0+cpu
-transformers==4.35.0
+numpy
+PyPDF2
+python-docx
+regex
 langchain-google-genai==0.0.8
 langgraph==0.0.6

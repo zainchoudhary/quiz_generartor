@@ -1,23 +1,24 @@
+# main_app.py
 import streamlit as st
 from PyPDF2 import PdfReader
 from docx import Document
 from io import BytesIO
-import re
-from typing import TypedDict, Optional, List, Dict
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
+from rag_system import RAG
+import hashlib
 
-# ------------------ LLM Setup ------------------
-try:
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
-except Exception:
-    st.error("⚠️ GOOGLE_API_KEY not found. LLM features disabled.")
-    llm = None
+# ------------------ Caching RAG instance ------------------
+@st.cache_resource
+def get_rag():
+    return RAG()
 
+rag = get_rag()
+
+# ------------------ Page Config ------------------
 st.set_page_config(page_title="🧠 AI Quiz Generator", layout="centered")
 
-# ------------------ Custom CSS ------------------
-st.markdown("""
+# ------------------ Custom CSS (your original styles kept intact) ------------------
+st.markdown(""" 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
 
@@ -168,93 +169,121 @@ st.markdown("<p>Upload a PDF/DOCX or type a topic to generate MCQs</p>", unsafe_
 
 
 # ------------------ Graph State ------------------
+from typing import TypedDict, Optional, List, Dict
 class QuizState(TypedDict, total=False):
-    file: Optional[any]
+    file: Optional[bytes]         # stored file bytes (or None)
+    file_name: Optional[str]      # filename of uploaded file
     text: str
     quiz_data: List[Dict]
     num_mcqs: int
+    topic: str
+
 
 graph = StateGraph(QuizState)
 
-# ---------- Node Functions ----------
+# ---------- Helper: compute file hash ----------
+def compute_hash(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
+
+# ---------- Node Functions (with session_state persistence) ----------
 def upload_node(state: QuizState) -> QuizState:
-    use_text = st.checkbox("Choose Topic Manually")
-    file = None
-    text_input = ""
-    if not use_text:
-        file = st.file_uploader("📂 Upload PDF or DOCX", type=["pdf", "docx"])
+    # Initialize persistent keys
+    if "file_bytes" not in st.session_state:
+        st.session_state.file_bytes = None
+    if "file_name" not in st.session_state:
+        st.session_state.file_name = ""
+    if "text" not in st.session_state:
+        st.session_state.text = ""
+    if "topic" not in st.session_state:
+        st.session_state.topic = ""
+    if "num_mcqs" not in st.session_state:
+        st.session_state.num_mcqs = 5
+    if "use_text" not in st.session_state:
+        st.session_state.use_text = False
+    if "last_doc_hash" not in st.session_state:
+        st.session_state.last_doc_hash = None
+
+    # UI controls (values come from session_state -> stable across reruns)
+    st.session_state.use_text = st.checkbox("Choose Topic Manually", value=st.session_state.use_text)
+
+    if not st.session_state.use_text:
+        uploaded_file = st.file_uploader("📂 Upload PDF or DOCX", type=["pdf", "docx"])
+        if uploaded_file is not None:
+            # store raw bytes & filename in session_state to persist across reruns
+            st.session_state.file_bytes = uploaded_file.getvalue()
+            st.session_state.file_name = uploaded_file.name
     else:
-        text_input = st.text_area("Enter topic or text", height=150)
-    num_mcqs = st.number_input("Number of MCQs", 1, 50, state.get("num_mcqs", 5), 1)
-    return {"file": file, "text": text_input, "num_mcqs": int(num_mcqs)}
+        st.session_state.text = st.text_area("Enter topic or text", value=st.session_state.text, height=150)
+        st.session_state.topic = st.session_state.text.strip()
+
+    st.session_state.num_mcqs = st.number_input(
+        "Number of MCQs", 1, 50, st.session_state.num_mcqs, 1
+    )
+
+    return {
+        "file": st.session_state.file_bytes,
+        "file_name": st.session_state.file_name,
+        "text": st.session_state.text,
+        "num_mcqs": int(st.session_state.num_mcqs),
+        "topic": st.session_state.topic
+    }
 
 def extract_text_node(state: QuizState) -> QuizState:
-    file = state.get("file")
+    file_bytes = state.get("file")
+    file_name = state.get("file_name", "")
     text = state.get("text", "")
-    if file and file.name.lower().endswith(".pdf"):
-        reader = PdfReader(file)
-        text = "\n".join([p.extract_text() or "" for p in reader.pages])
-    elif file and file.name.lower().endswith(".docx"):
-        doc = Document(file)
-        text = "\n".join([p.text for p in doc.paragraphs])
-    return {"file": file, "text": text, "num_mcqs": state.get("num_mcqs", 5)}
+
+    # If there's a file stored in session_state, read it
+    if file_bytes and file_name:
+        bio = BytesIO(file_bytes)
+        if file_name.lower().endswith(".pdf"):
+            try:
+                reader = PdfReader(bio)
+                text = "\n".join([p.extract_text() or "" for p in reader.pages])
+            except Exception as e:
+                st.error(f"PDF read error: {e}")
+                text = ""
+        elif file_name.lower().endswith(".docx"):
+            try:
+                doc = Document(bio)
+                text = "\n".join([p.text for p in doc.paragraphs])
+            except Exception as e:
+                st.error(f"DOCX read error: {e}")
+                text = ""
+
+        # compute hash and add to rag only if this document is new
+        doc_hash = compute_hash(file_bytes)
+        if text.strip() and st.session_state.last_doc_hash != doc_hash:
+            try:
+                rag.add_document(text)
+                st.session_state.last_doc_hash = doc_hash
+            except Exception as e:
+                st.error(f"RAG add_document error: {e}")
+
+    # If user typed text (manual topic), don't add it as a doc (unless you want)
+    return {"file": file_bytes, "file_name": file_name, "text": text, "num_mcqs": state.get("num_mcqs", 5), "topic": state.get("topic", "")}
 
 def generate_quiz_node(state: QuizState) -> QuizState:
-    text = state.get("text", "").strip()
-    num_mcqs = state.get("num_mcqs", 5)
-    if not text or not llm:
-        return {"text": text, "num_mcqs": num_mcqs, "quiz_data": []}
-
-    prompt = f"""
-    Generate {num_mcqs} multiple-choice questions (MCQs) from the following text.
-    Format each question clearly with options and mark the correct answer at the end.
-    don't give extra information just start from the first question.
-    also dont used such type of words like "provided text" and "given text" anf " as in the text?" and "According to the text" or "as mentioned in the text"
-    etc , means it should not feel that yuo generate mcqs from provided text, response automatically by guessing which is asked by the user and used that topic name instead of say provided text or any other words like it
-
-    Example format:
-    Q1. What is AI?
-    A) Option 1
-    B) Option 2
-    C) Option 3
-    D) Option 4
-    Answer: B
-
-    Text:
-    {text[:4000]}
-    """
+    topic = state.get("topic", "").strip()
+    num_mcqs = int(state.get("num_mcqs", 5))
+    if not topic:
+        # fallback: try to auto-derive a topic from the uploaded doc (first few words)
+        text = state.get("text", "").strip()
+        if text:
+            topic = " ".join(text.split()[:7])  # small fallback topic
+    if not topic:
+        st.warning("Please provide a topic (choose manually) or upload a file with content.")
+        return {"quiz_data": [], "topic": topic, "num_mcqs": num_mcqs}
 
     try:
-        result = llm.invoke(prompt)
-        output_text = getattr(result, "content", None) or getattr(result, "output_text", "")
-    except Exception:
-        output_text = ""
-
-    output_text = re.sub(r'(?i)question\s*\d*[:.]', lambda m: f"Q", output_text)
-    output_text = output_text.replace("Option ", "").replace("Answer:", "Answer:")
-
-    pattern = r"""Q\d*[\.\)]?\s*([\s\S]*?)\s*A[\)\.:]\s*([\s\S]*?)\s*B[\)\.:]\s*([\s\S]*?)\s*C[\)\.:]\s*([\s\S]*?)\s*D[\)\.:]\s*([\s\S]*?)\s*Answer[:\s]*([ABCD])"""
-    matches = re.findall(pattern, output_text, re.IGNORECASE | re.VERBOSE)
-
-    quiz_data = []
-    for q in matches:
-        question_text, A, B, C, D, ans = q
-        clean = lambda s: re.sub(r'\s+', ' ', s)
-        quiz_data.append({
-            "question": clean(question_text),
-            "options": {
-                "A": clean(A),
-                "B": clean(B),
-                "C": clean(C),
-                "D": clean(D),
-            },
-            "answer": ans.strip().upper()
-        })
+        quiz_data = rag.generate_mcqs(topic, num_mcqs)
+    except Exception as e:
+        st.error(f"Error generating MCQs: {e}")
+        quiz_data = []
 
     if not quiz_data:
-        st.warning("⚠️ The model returned text but the format was unclear. Try shortening or simplifying your input.")
-
-    return {"text": text, "num_mcqs": num_mcqs, "quiz_data": quiz_data}
+        st.warning("⚠️ No quiz generated. Try changing the topic or upload a different document.")
+    return {"text": state.get("text", ""), "num_mcqs": num_mcqs, "quiz_data": quiz_data, "topic": topic}
 
 def display_quiz_node(state: QuizState) -> QuizState:
     quiz_data = state.get("quiz_data", [])
@@ -278,21 +307,18 @@ def display_quiz_node(state: QuizState) -> QuizState:
         """, unsafe_allow_html=True)
 
     st.markdown("---")
-    fmt = st.radio("Download format:", ["Word (.docx)"], horizontal=True)
-
-    if fmt == "Word (.docx)":
-        doc = Document()
-        doc.add_heading("AI Generated Quiz", 0)
-        for i, q in enumerate(quiz_data):
-            doc.add_paragraph(f"Q{i + 1}. {q['question']}")
-            for k, v in q["options"].items():
-                doc.add_paragraph(f"{k}) {v}")
-            doc.add_paragraph(f"Answer: {q['answer']}\n")
-        buf = BytesIO()
-        doc.save(buf)
-        buf.seek(0)
-        st.download_button("⬇️ Download as Word", buf, "AI_Quiz.docx")
-
+    # Download as Word
+    buf = BytesIO()
+    doc = Document()
+    doc.add_heading("AI Generated Quiz", 0)
+    for i, q in enumerate(quiz_data):
+        doc.add_paragraph(f"Q{i + 1}. {q['question']}")
+        for k, v in q["options"].items():
+            doc.add_paragraph(f"{k}) {v}")
+        doc.add_paragraph(f"Answer: {q['answer']}\n")
+    doc.save(buf)
+    buf.seek(0)
+    st.download_button("⬇️ Download as Word", buf, "AI_Quiz.docx")
     return {"quiz_data": quiz_data}
 
 # ---------- Build Graph ----------
@@ -307,12 +333,12 @@ graph.add_edge("extract_text_node", "generate_quiz_node")
 graph.add_edge("generate_quiz_node", "display_quiz_node")
 graph.add_edge("display_quiz_node", END)
 
-app = graph.compile()
-
 # ---------- Streamlit trigger ----------
-state = {"file": None, "text": "", "quiz_data": [], "num_mcqs": 5}
+state = {"file": None, "file_name": "", "text": "", "quiz_data": [], "num_mcqs": 5, "topic": ""}
 updated = upload_node(state)
-if st.button("🚀 Generate Quiz"):
+
+# Only run the pipeline when user explicitly clicks the button
+if st.button("🚀 Generate Quiz", use_container_width=True):
     with st.spinner("Generating quiz... please wait"):
         updated = extract_text_node(updated)
         updated = generate_quiz_node(updated)

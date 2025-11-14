@@ -4,7 +4,7 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from langchain_google_genai import ChatGoogleGenerativeAI
-
+import os
 api_key = os.environ.get("GOOGLE_API_KEY")
 
 llm = ChatGoogleGenerativeAI(

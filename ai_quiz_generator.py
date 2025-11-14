@@ -7,7 +7,7 @@ from rag_system import RAG
 import hashlib
 from typing import TypedDict, Optional, List, Dict
 
-
+api_key = os.environ.get("GOOGLE_API_KEY")
 # ------------------ Caching RAG instance ------------------
 @st.cache_resource
 def get_rag():

@@ -5,10 +5,27 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# Initialize LLM
 api_key = os.environ.get("GOOGLE_API_KEY")
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    temperature=0,
+    max_output_tokens=512,
+    timeout=120
+)
+
+import time
+
+def safe_chat(prompt):
+    retries = 3
+    delay = 10
+    for i in range(retries):
+        try:
+            return llm.predict(prompt)
+        except Exception as e:
+            print(f"Retry {i+1} failed: {e}")
+            time.sleep(delay)
+    raise Exception("All retries failed")
 
 
 class RAG:
@@ -16,7 +33,7 @@ class RAG:
     RAG pipeline components: Chunking, Embedding, Indexing, Retrieval, and Generation.
     """
 
-    def __init__(self, embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2", chunk_size: int = 500):
+    def __init__(self, embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2", chunk_size = 200):
         self.documents: List[str] = []
         self.embeddings: List[np.ndarray] = []
         self.chunk_size = chunk_size
@@ -102,6 +119,9 @@ class RAG:
             1. Don't give any introductory or concluding sentences. Start directly with the first question.
             2. Do not use phrases like "provided text," "given text," "as in the text," "According to the text," or "as mentioned in the text."
             3. Instead, formulate the question naturally as if you are knowledgeable about the topic.
+            4.Remove unnecessary context.
+            5.Only send the text you need for quiz generation.
+            6.Use shorter questions and answers when possible.
 
             Example format:
             Q1. What is AI?

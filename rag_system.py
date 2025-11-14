@@ -1,26 +1,13 @@
-# rag_system.py
-
 import re
 from typing import List
 import faiss
 import numpy as np
-import streamlit as st  # <-- NEW IMPORT
 from sentence_transformers import SentenceTransformer
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Initialize LLM
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
-
-# ----------------- CRITICAL FIX: CACHE EMBEDDING MODEL -----------------
-@st.cache_resource(show_spinner="Loading Embedding Model...")
-def get_embedding_model(model_name: str):
-    """Load and cache the SentenceTransformer model (heavy resource)."""
-    # This heavy loading only happens once on app startup
-    return SentenceTransformer(model_name)
-
-
-# -----------------------------------------------------------------------
 
 
 class RAG:
@@ -32,10 +19,7 @@ class RAG:
         self.documents: List[str] = []
         self.embeddings: List[np.ndarray] = []
         self.chunk_size = chunk_size
-
-        # Call the cached function to get the model instance
-        # This will be fast after the first run
-        self.model = get_embedding_model(embedding_model_name)  # <-- UPDATED
+        self.model = SentenceTransformer(embedding_model_name)
         self.index = None  # FAISS Index
 
     def clear_documents(self):
@@ -109,7 +93,6 @@ class RAG:
         if not context:
             prompt_context = f"Topic: {topic}"
         else:
-            # Limiting context size for the prompt
             prompt_context = f"Context:\n{context[:4000]}"
 
         prompt = f"""

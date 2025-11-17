@@ -8,15 +8,12 @@ import hashlib
 from typing import TypedDict, Optional, List, Dict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
+from rag_pipeline import run_rag_pipeline
+from dotenv import load_dotenv
 
+load_dotenv()
 api_key = os.environ["GOOGLE_API_KEY"]
 
-# --- RAG Pipeline Integration ---
-from rag_pipeline import run_rag_pipeline  # KEEP THIS IMPORT
-
-
-
-# ------------------ LLM Setup ------------------
 try:
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 except Exception:
@@ -159,7 +156,6 @@ st.markdown("<p>Upload a PDF/DOCX or type a topic to generate MCQs (Documents ar
             unsafe_allow_html=True)
 
 
-# ------------------ Graph State ------------------
 class QuizState(TypedDict, total=False):
     file: Optional[any]
     raw_text: str  # Full document text
@@ -170,13 +166,10 @@ class QuizState(TypedDict, total=False):
     quiz_data: List[Dict]
     num_mcqs: int
 
-
 graph = StateGraph(QuizState)
 
 
-# ---------- Node: Upload ----------
 def upload_node(state: QuizState) -> QuizState:
-    # Use session state to manage the checkbox/file uploader visibility
     if 'use_text' not in st.session_state:
         st.session_state.use_text = False
 
@@ -191,7 +184,6 @@ def upload_node(state: QuizState) -> QuizState:
     if not st.session_state.use_text:
         file = st.file_uploader("📂 Upload PDF or DOCX", type=["pdf", "docx"])
     else:
-        # Use a key to persist the text area content
         text_input = st.text_area("Enter topic or text", height=150, key="manual_text_input")
 
     num_mcqs = st.number_input("Number of MCQs", 1, 50, state.get("num_mcqs", 5), 1)
@@ -199,16 +191,13 @@ def upload_node(state: QuizState) -> QuizState:
     return {"file": file, "manual_topic": text_input, "num_mcqs": int(num_mcqs)}
 
 
-# ---------- Node: Extract Text (MODIFIED) ----------
 def extract_text_node(state: QuizState) -> QuizState:
     file = state.get("file")
     manual_topic = state.get("manual_topic", "")
     raw_text = ""
     file_hash = ""
 
-    # Extract text and calculate hash from file if available
     if file:
-        # Read the file's content once for hashing and processing
         file_bytes = file.read()
         file_hash = hashlib.sha256(file_bytes).hexdigest()
         file.seek(0)  # Rewind the file pointer
@@ -220,7 +209,6 @@ def extract_text_node(state: QuizState) -> QuizState:
             doc = Document(BytesIO(file_bytes))
             raw_text = "\n".join([p.text for p in doc.paragraphs])
 
-    # If no file but a manual topic is provided
     elif manual_topic:
         raw_text = manual_topic
         # Hash the topic string
@@ -238,7 +226,6 @@ def extract_text_node(state: QuizState) -> QuizState:
     }
 
 
-# ---------- Node: Generate Quiz (RAG Integration - MODIFIED) ----------
 def generate_quiz_node(state: QuizState) -> QuizState:
     raw_text = state.get("raw_text", "").strip()
     manual_topic = state.get("manual_topic", "").strip()
@@ -248,17 +235,14 @@ def generate_quiz_node(state: QuizState) -> QuizState:
     if not raw_text or not llm:
         return {"raw_text": raw_text, "context_text": "", "num_mcqs": num_mcqs, "quiz_data": []}
 
-    # 1. RAG STEP: Get the context
     query = manual_topic if manual_topic else raw_text[:100]
 
-    # Run the RAG pipeline, passing the file_hash for persistence check
     context_text = run_rag_pipeline(raw_text, query, file_hash)
 
     if not context_text:
         st.error("RAG pipeline failed to retrieve context. Check your `rag_pipeline.py` setup and API key.")
         return {"raw_text": raw_text, "context_text": "", "num_mcqs": num_mcqs, "quiz_data": []}
 
-    # 2. LLM Prompt Generation
     prompt = f"""
     Generate {num_mcqs} multiple-choice questions (MCQs) from the following text.
     Format each question clearly with options and mark the correct answer at the end.
@@ -286,11 +270,9 @@ def generate_quiz_node(state: QuizState) -> QuizState:
     except Exception:
         output_text = ""
 
-    # Normalize output
     output_text = re.sub(r'(?i)question\s*\d*[:.]', lambda m: f"Q", output_text)
     output_text = output_text.replace("Option ", "").replace("Answer:", "Answer:")
 
-    # Flexible pattern to capture full text of questions and options
     pattern = r"""Q\d*[\.\)]?\s*([\s\S]*?)
                   \s*A[\)\.:]\s*([\s\S]*?)
                   \s*B[\)\.:]\s*([\s\S]*?)
@@ -324,12 +306,10 @@ def generate_quiz_node(state: QuizState) -> QuizState:
 def display_quiz_node(state: QuizState) -> QuizState:
     quiz_data = state.get("quiz_data", [])
     if not quiz_data:
-        # Prevent displaying download options if no quiz was generated
         return {"quiz_data": []}
 
     st.subheader("✅ Quiz Generated!")
 
-    # Invisible placeholder for style fix
     st.markdown("<span style='display:none'>.</span>", unsafe_allow_html=True)
 
     for i, q in enumerate(quiz_data):
@@ -346,7 +326,6 @@ def display_quiz_node(state: QuizState) -> QuizState:
 
     st.markdown("---")
 
-    # Download option section
     fmt = st.radio("Download format:", ["Word (.docx)"], horizontal=True)
 
     if fmt == "Word (.docx)":
@@ -369,7 +348,6 @@ def display_quiz_node(state: QuizState) -> QuizState:
     return {"quiz_data": quiz_data}
 
 
-# ---------- Build Graph ----------
 graph.add_node("upload_node", upload_node)
 graph.add_node("extract_text_node", extract_text_node)
 graph.add_node("generate_quiz_node", generate_quiz_node)
@@ -383,7 +361,6 @@ graph.add_edge("display_quiz_node", END)
 
 app = graph.compile()
 
-# ---------- Streamlit trigger ----------
 state = {"file": None, "raw_text": "", "context_text": "", "manual_topic": "", "file_hash": "", "quiz_data": [],
          "num_mcqs": 5}
 updated = upload_node(state)

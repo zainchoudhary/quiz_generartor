@@ -1,35 +1,38 @@
 import streamlit as st
+import os
 from PyPDF2 import PdfReader
 from docx import Document
 from io import BytesIO
-from langgraph.graph import StateGraph, END
-from rag_system import RAG
+import re
 import hashlib
 from typing import TypedDict, Optional, List, Dict
-import os
-api_key = os.environ.get("GOOGLE_API_KEY")
-# ------------------ Caching RAG instance ------------------
-@st.cache_resource
-def get_rag():
-    return RAG()
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langgraph.graph import StateGraph, END
+
+api_key = os.environ["GOOGLE_API_KEY"]
+
+# --- RAG Pipeline Integration ---
+from rag_pipeline import run_rag_pipeline  # KEEP THIS IMPORT
 
 
 
+# ------------------ LLM Setup ------------------
+try:
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+except Exception:
+    st.error("⚠️ GOOGLE_API_KEY not found. LLM features disabled.")
+    llm = None
 
-rag = get_rag()
-
-# ------------------ Page Config ------------------
 st.set_page_config(page_title="🧠 AI Quiz Generator", layout="centered")
 
-# ------------------ Custom CSS (your original styles kept intact) ------------------
-st.markdown(""" 
+st.markdown("""
 <style>
-@import url('https://fonts.fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
 
 :root {
     --primary-accent: #33CCFF;
     --secondary-dark: #0B1A2B;
-    --background-main: #001f3f;
+    --background-main: #162231;
     --card-bg-light: #162231;
     --text-color: #F0F5FA;
     --muted-text: #9FB8C9;
@@ -44,35 +47,18 @@ body, .stApp {
 
 header { visibility: hidden; height: 0; }
 
+h1 {
+    text-align: center;
+    font-size: 2.8em;
+    font-weight: 700;
+    color: var(--primary-accent);
+    margin-bottom: 5px;
+}
+
 p { 
     text-align: center; 
     color: var(--muted-text);
     font-size: 1.1em;
-}
-
-/* --- Upgraded Neon Title with Navy Blue --- */
-.neon-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 4em;
-    font-weight: 900;
-    text-align: center;
-    letter-spacing: 2px;
-    background: linear-gradient(120deg, #0B1A2B, #00FFE0, #33CCFF); /* Navy + cyan gradient */
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 
-        0 0 5px #0B1A2B,
-        0 0 10px #00FFE0,
-        0 0 20px #33CCFF,
-        0 0 30px #33CCFF,
-        0 0 40px #00FFE0,
-        0 0 55px #33CCFF,
-        0 0 75px #33CCFF;
-}
-
-@keyframes flicker {
-    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
-    20%, 22%, 24%, 55% { opacity: 0.4; }
 }
 
 /* Floating Bubbles Animation */
@@ -126,7 +112,7 @@ p {
     transform: translateX(5px);
 }
 
-/* Buttons Styling */
+/* --- BUTTON STYLES --- */
 .stDownloadButton button, 
 .stButton button { 
     background: linear-gradient(135deg, #0B1A2B, #162231) !important;
@@ -139,6 +125,7 @@ p {
     box-shadow: 0 5px 20px rgba(0,0,0,0.5);
     transition: all 0.3s ease;
 }
+
 .stDownloadButton button:hover,
 .stButton button:hover {
     box-shadow: 0 10px 30px rgba(0,0,0,0.7);
@@ -151,7 +138,7 @@ p {
 <div id="bubbles"></div>
 
 <script>
-const colors = ['#00FFE0','#33CCFF','#FF33CC','#FFDD33','#33FFAA'];
+const colors = ['#33CCFF','#00FFE0','#FF33CC','#FFDD33','#33FFAA'];
 for(let i=0;i<30;i++){
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
@@ -167,222 +154,182 @@ for(let i=0;i<30;i++){
 </script>
 """, unsafe_allow_html=True)
 
-# --- Neon Title (No Blink) ---
-st.markdown("<h1 class='neon-title'>🧠 AI Quiz Generator</h1>", unsafe_allow_html=True)
-st.markdown("<p>Upload a PDF/DOCX or type a topic to generate MCQs</p>", unsafe_allow_html=True)
+st.markdown("<h1>🧠 AI Quiz Generator</h1>", unsafe_allow_html=True)
+st.markdown("<p>Upload a PDF/DOCX or type a topic to generate MCQs (Documents are saved locally for history)</p>",
+            unsafe_allow_html=True)
 
 
 # ------------------ Graph State ------------------
 class QuizState(TypedDict, total=False):
-    file: Optional[bytes]  # stored file bytes (or None)
-    file_name: Optional[str]  # filename of uploaded file
-    text: str  # Extracted text content
-    quiz_data: List[Dict]  # Generated MCQs
-    num_mcqs: int  # Number of MCQs requested
-    topic: str  # Topic for quiz generation
-    doc_hash: Optional[str]  # Hash of the document content
+    file: Optional[any]
+    raw_text: str  # Full document text
+    context_text: str  # Text after RAG retrieval
+    manual_topic: str  # User's manual input
+    file_hash: str  # Hash of the document content (for ChromaDB persistence)
+    file_hash: str  # Hash of the document content (for ChromaDB persistence)
+    quiz_data: List[Dict]
+    num_mcqs: int
 
 
 graph = StateGraph(QuizState)
 
 
-# ---------- Helper: compute file hash ----------
-def compute_hash(b: bytes) -> str:
-    """Computes SHA256 hash of file bytes for caching/deduplication."""
-    return hashlib.sha256(b).hexdigest()
-
-
-# ---------- Node Functions (with session_state persistence) ----------
+# ---------- Node: Upload ----------
 def upload_node(state: QuizState) -> QuizState:
-    """Handles UI for file upload and configuration."""
-    # Initialize persistent keys in session_state
-    if "file_bytes" not in st.session_state: st.session_state.file_bytes = None
-    if "file_name" not in st.session_state: st.session_state.file_name = ""
-    if "text" not in st.session_state: st.session_state.text = ""
-    if "topic" not in st.session_state: st.session_state.topic = ""
-    if "num_mcqs" not in st.session_state: st.session_state.num_mcqs = 5
-    if "use_text" not in st.session_state: st.session_state.use_text = False
-    if "last_doc_hash" not in st.session_state: st.session_state.last_doc_hash = None
+    # Use session state to manage the checkbox/file uploader visibility
+    if 'use_text' not in st.session_state:
+        st.session_state.use_text = False
 
-    # UI controls
-    use_text_new = st.checkbox("Choose Topic Manually", value=st.session_state.use_text)
+    def toggle_use_text():
+        st.session_state.use_text = not st.session_state.use_text
 
-    # ------------------ CRITICAL FIX ------------------
-    # Check if the state changed from File Upload (False) to Manual Text (True)
-    if st.session_state.use_text == False and use_text_new == True:
-        # If switching to manual text, clear the existing RAG index and hash
-        rag.clear_documents()
-        st.session_state.last_doc_hash = None
-        st.info("RAG index cleared. Generating quiz from manual topic.")
+    use_text = st.checkbox("Or type a topic manually", value=st.session_state.use_text, on_change=toggle_use_text)
 
-    st.session_state.use_text = use_text_new  # Update session state after check
-    # --------------------------------------------------
+    file = None
+    text_input = ""
 
     if not st.session_state.use_text:
-        uploaded_file = st.file_uploader("📂 Upload PDF or DOCX", type=["pdf", "docx"])
-        if uploaded_file is not None:
-            # Store raw bytes & filename to persist across reruns
-            st.session_state.file_bytes = uploaded_file.getvalue()
-            st.session_state.file_name = uploaded_file.name
-
-        # Clear manual topic/text if switching to file upload
-        if st.session_state.text.strip():
-            st.session_state.text = ""
-            st.session_state.topic = ""
+        file = st.file_uploader("📂 Upload PDF or DOCX", type=["pdf", "docx"])
     else:
-        st.session_state.text = st.text_area("Enter topic or text", value=st.session_state.text, height=150)
-        # Use the entered text as the topic
-        st.session_state.topic = st.session_state.text.strip()
+        # Use a key to persist the text area content
+        text_input = st.text_area("Enter topic or text", height=150, key="manual_text_input")
 
-        # Clear file info if switching to manual text
-        if st.session_state.file_bytes:
-            st.session_state.file_bytes = None
-            st.session_state.file_name = ""
+    num_mcqs = st.number_input("Number of MCQs", 1, 50, state.get("num_mcqs", 5), 1)
 
-    st.session_state.num_mcqs = st.number_input(
-        "Number of MCQs", 1, 50, st.session_state.num_mcqs, 1
-    )
-
-    # Calculate hash if file is present
-    current_doc_hash = compute_hash(st.session_state.file_bytes) if st.session_state.file_bytes else None
-
-    return {
-        "file": st.session_state.file_bytes,
-        "file_name": st.session_state.file_name,
-        "text": st.session_state.text,
-        "num_mcqs": int(st.session_state.num_mcqs),
-        "topic": st.session_state.topic,
-        "doc_hash": current_doc_hash
-    }
+    return {"file": file, "manual_topic": text_input, "num_mcqs": int(num_mcqs)}
 
 
+# ---------- Node: Extract Text (MODIFIED) ----------
 def extract_text_node(state: QuizState) -> QuizState:
-    """
-    Step 1: Extract text content from the uploaded file bytes.
-    Does NOT modify the RAG index.
-    """
-    file_bytes = state.get("file")
-    file_name = state.get("file_name", "")
-    extracted_text = state.get("text", "")  # Start with manual text if available
+    file = state.get("file")
+    manual_topic = state.get("manual_topic", "")
+    raw_text = ""
+    file_hash = ""
 
-    # If there's a file, read it
-    if file_bytes and file_name:
-        bio = BytesIO(file_bytes)
-        if file_name.lower().endswith(".pdf"):
-            try:
-                reader = PdfReader(bio)
-                extracted_text = "\n".join([p.extract_text() or "" for p in reader.pages])
-            except Exception as e:
-                st.error(f"PDF read error: {e}")
-                extracted_text = ""
-        elif file_name.lower().endswith(".docx"):
-            try:
-                doc = Document(bio)
-                extracted_text = "\n".join([p.text for p in doc.paragraphs])
-            except Exception as e:
-                st.error(f"DOCX read error: {e}")
-                extracted_text = ""
+    # Extract text and calculate hash from file if available
+    if file:
+        # Read the file's content once for hashing and processing
+        file_bytes = file.read()
+        file_hash = hashlib.sha256(file_bytes).hexdigest()
+        file.seek(0)  # Rewind the file pointer
 
-        # If text extraction failed, but we had bytes, something went wrong.
-        if not extracted_text.strip():
-            st.warning(f"Could not extract meaningful text from {file_name}.")
+        if file.name.lower().endswith(".pdf"):
+            reader = PdfReader(file)
+            raw_text = "\n".join([p.extract_text() or "" for p in reader.pages])
+        elif file.name.lower().endswith(".docx"):
+            doc = Document(BytesIO(file_bytes))
+            raw_text = "\n".join([p.text for p in doc.paragraphs])
 
-    # Update session_state for persistence and return for graph flow
-    st.session_state.text = extracted_text
+    # If no file but a manual topic is provided
+    elif manual_topic:
+        raw_text = manual_topic
+        # Hash the topic string
+        file_hash = hashlib.sha256(manual_topic.encode('utf-8')).hexdigest()
 
-    # Auto-derive topic if not manually set and we have extracted text
-    topic = state.get("topic", "").strip()
-    if not topic and extracted_text.strip():
-        topic = " ".join(extracted_text.split()[:7])  # Small fallback topic
-        st.session_state.topic = topic
+    if not raw_text:
+        st.error("Please upload a file or enter a topic.")
 
     return {
-        "file": file_bytes,
-        "file_name": file_name,
-        "text": extracted_text,
-        "num_mcqs": state.get("num_mcqs", 5),
-        "topic": topic,
-        "doc_hash": state.get("doc_hash")
+        "file": file,
+        "raw_text": raw_text,
+        "manual_topic": manual_topic,
+        "file_hash": file_hash,
+        "num_mcqs": state.get("num_mcqs", 5)
     }
 
 
-def process_document_node(state: QuizState) -> QuizState:
-    """
-    Step 2: Handles the RAG pipeline steps (Chunking, Embedding, Indexing).
-    Only re-processes if a new document is detected via its hash.
-    """
-    text = state.get("text", "").strip()
-    current_doc_hash = state.get("doc_hash")
-    last_doc_hash = st.session_state.last_doc_hash
-
-    # Check for content from an uploaded file
-    if current_doc_hash and text:
-        if last_doc_hash != current_doc_hash:
-            st.info("🔄 Document changed. Processing (Chunking, Embedding, Indexing)...")
-            try:
-                # This call performs Chunking, Embedding, and Indexing
-                rag.add_document(text)
-                st.session_state.last_doc_hash = current_doc_hash
-                st.success("✅ Document processed and RAG index updated.")
-            except Exception as e:
-                st.error(f"RAG processing error: {e}")
-
-    # Check for content from manual text input (which doesn't set a hash)
-    elif not current_doc_hash and text and st.session_state.use_text:
-        # When using manual topic, the index is assumed cleared by upload_node
-        # We do nothing here, as the quiz generation step relies on general knowledge
-        # when the RAG index is empty.
-        pass
-
-    elif not text:
-        st.warning("No text or file content available for processing.")
-
-    # Return the state unchanged for the next step
-    return state
-
-
+# ---------- Node: Generate Quiz (RAG Integration - MODIFIED) ----------
 def generate_quiz_node(state: QuizState) -> QuizState:
-    """
-    Step 3: Handles the RAG pipeline steps (Retrieval and Generation).
-    """
-    topic = state.get("topic", "").strip()
-    num_mcqs = int(state.get("num_mcqs", 5))
-    quiz_data = []
+    raw_text = state.get("raw_text", "").strip()
+    manual_topic = state.get("manual_topic", "").strip()
+    file_hash = state.get("file_hash", "manual_topic_no_hash")
+    num_mcqs = state.get("num_mcqs", 5)
 
-    if not topic:
-        st.warning("Please provide a topic (choose manually) or upload a file with content.")
-        return {"quiz_data": [], "topic": topic, "num_mcqs": num_mcqs}
+    if not raw_text or not llm:
+        return {"raw_text": raw_text, "context_text": "", "num_mcqs": num_mcqs, "quiz_data": []}
+
+    # 1. RAG STEP: Get the context
+    query = manual_topic if manual_topic else raw_text[:100]
+
+    # Run the RAG pipeline, passing the file_hash for persistence check
+    context_text = run_rag_pipeline(raw_text, query, file_hash)
+
+    if not context_text:
+        st.error("RAG pipeline failed to retrieve context. Check your `rag_pipeline.py` setup and API key.")
+        return {"raw_text": raw_text, "context_text": "", "num_mcqs": num_mcqs, "quiz_data": []}
+
+    # 2. LLM Prompt Generation
+    prompt = f"""
+    Generate {num_mcqs} multiple-choice questions (MCQs) from the following text.
+    Format each question clearly with options and mark the correct answer at the end.
+
+    CRITICAL INSTRUCTIONS:
+    1. Do NOT use phrases like "provided text," "given text," "as in the text," or "According to the text."
+    2. Instead, refer to the actual topic or subject matter.
+    3. Start directly with the first question, no extra introductory text.
+
+    Example format:
+    Q1. What is AI?
+    A) Option 1
+    B) Option 2
+    C) Option 3
+    D) Option 4
+    Answer: B
+
+    Text:
+    {context_text}
+    """
 
     try:
-        # This call performs Retrieval (if index exists) and LLM Generation
-        quiz_data = rag.generate_mcqs(topic, num_mcqs)
-    except Exception as e:
-        st.error(f"Error generating MCQs: {e}")
-        quiz_data = []
+        result = llm.invoke(prompt)
+        output_text = getattr(result, "content", None) or getattr(result, "output_text", "")
+    except Exception:
+        output_text = ""
+
+    # Normalize output
+    output_text = re.sub(r'(?i)question\s*\d*[:.]', lambda m: f"Q", output_text)
+    output_text = output_text.replace("Option ", "").replace("Answer:", "Answer:")
+
+    # Flexible pattern to capture full text of questions and options
+    pattern = r"""Q\d*[\.\)]?\s*([\s\S]*?)
+                  \s*A[\)\.:]\s*([\s\S]*?)
+                  \s*B[\)\.:]\s*([\s\S]*?)
+                  \s*C[\)\.:]\s*([\s\S]*?)
+                  \s*D[\)\.:]\s*([\s\S]*?)
+                  \s*Answer[:\s]*([ABCD])
+                """
+    matches = re.findall(pattern, output_text, re.IGNORECASE | re.VERBOSE)
+
+    quiz_data = []
+    for q in matches:
+        question_text, A, B, C, D, ans = q
+        clean = lambda s: re.sub(r'\s+', ' ', s.strip())
+        quiz_data.append({
+            "question": clean(question_text),
+            "options": {
+                "A": clean(A),
+                "B": clean(B),
+                "C": clean(C),
+                "D": clean(D),
+            },
+            "answer": ans.strip().upper()
+        })
 
     if not quiz_data:
-        st.warning("⚠️ No quiz generated. Try changing the topic or upload a different document.")
+        st.warning("⚠️ The model returned text but the format was unclear. Try shortening or simplifying your input.")
 
-    # Preserve original text content and other metadata
-    return {
-        "text": state.get("text", ""),
-        "num_mcqs": num_mcqs,
-        "quiz_data": quiz_data,
-        "topic": topic
-    }
+    return {"raw_text": raw_text, "context_text": context_text, "num_mcqs": num_mcqs, "quiz_data": quiz_data}
 
 
 def display_quiz_node(state: QuizState) -> QuizState:
-    """
-    Step 4: Displays the generated quiz and provides a download button.
-    """
     quiz_data = state.get("quiz_data", [])
     if not quiz_data:
-        st.info("Nothing to display.")
+        # Prevent displaying download options if no quiz was generated
         return {"quiz_data": []}
 
     st.subheader("✅ Quiz Generated!")
-    # Trick to force CSS to render sometimes
+
+    # Invisible placeholder for style fix
     st.markdown("<span style='display:none'>.</span>", unsafe_allow_html=True)
 
     for i, q in enumerate(quiz_data):
@@ -398,56 +345,58 @@ def display_quiz_node(state: QuizState) -> QuizState:
         """, unsafe_allow_html=True)
 
     st.markdown("---")
-    # Download as Word
-    buf = BytesIO()
-    doc = Document()
-    doc.add_heading("AI Generated Quiz", 0)
-    for i, q in enumerate(quiz_data):
-        doc.add_paragraph(f"Q{i + 1}. {q['question']}")
-        for k, v in q["options"].items():
-            doc.add_paragraph(f"{k}) {v}")
-        doc.add_paragraph(f"Answer: {q['answer']}\n")
-    doc.save(buf)
-    buf.seek(0)
-    st.download_button("⬇️ Download as Word", buf, "AI_Quiz.docx")
+
+    # Download option section
+    fmt = st.radio("Download format:", ["Word (.docx)"], horizontal=True)
+
+    if fmt == "Word (.docx)":
+        doc = Document()
+        doc.add_heading("AI Generated Quiz", 0)
+        # Add the answers key for reference
+        doc.add_paragraph("--- ANSWER KEY ---")
+
+        for i, q in enumerate(quiz_data):
+            doc.add_paragraph(f"Q{i + 1}. {q['question']}")
+            for k, v in q["options"].items():
+                doc.add_paragraph(f"{k}) {v}")
+            doc.add_paragraph(f"Correct Answer: {q['answer']}\n")
+
+        buf = BytesIO()
+        doc.save(buf)
+        buf.seek(0)
+        st.download_button("⬇️ Download as Word", buf, "AI_Quiz.docx")
+
     return {"quiz_data": quiz_data}
 
 
 # ---------- Build Graph ----------
 graph.add_node("upload_node", upload_node)
 graph.add_node("extract_text_node", extract_text_node)
-graph.add_node("process_document_node", process_document_node)
 graph.add_node("generate_quiz_node", generate_quiz_node)
 graph.add_node("display_quiz_node", display_quiz_node)
 
 graph.set_entry_point("upload_node")
 graph.add_edge("upload_node", "extract_text_node")
-graph.add_edge("extract_text_node", "process_document_node")
-graph.add_edge("process_document_node", "generate_quiz_node")
+graph.add_edge("extract_text_node", "generate_quiz_node")
 graph.add_edge("generate_quiz_node", "display_quiz_node")
 graph.add_edge("display_quiz_node", END)
 
+app = graph.compile()
+
 # ---------- Streamlit trigger ----------
-# Initial state with default values
-initial_state = {"file": None, "file_name": "", "text": "", "quiz_data": [], "num_mcqs": 5, "topic": "",
-                 "doc_hash": None}
+state = {"file": None, "raw_text": "", "context_text": "", "manual_topic": "", "file_hash": "", "quiz_data": [],
+         "num_mcqs": 5}
+updated = upload_node(state)
 
-# Run the first node for UI rendering and state collection
-current_state = upload_node(initial_state)
-
-# Only run the full pipeline when user explicitly clicks the button
-if st.button("🚀 Generate Quiz", use_container_width=True):
-    with st.spinner("Executing RAG Pipeline: Extracting Text..."):
-        # 1. Extract Text
-        current_state = extract_text_node(current_state)
-
-    with st.spinner("Executing RAG Pipeline: Chunking, Embedding, & Indexing..."):
-        # 2. Process Document (Chunking, Embedding, Indexing)
-        current_state = process_document_node(current_state)
-
-    with st.spinner("Executing RAG Pipeline: Retrieval & Generation..."):
-        # 3. Generate Quiz (Retrieval and LLM Call)
-        current_state = generate_quiz_node(current_state)
-
-    # 4. Display Results
-    display_quiz_node(current_state)
+if st.button("🚀 Generate Quiz"):
+    if not st.session_state.use_text and not updated.get("file"):
+        st.error("Please upload a file or check the box to enter a topic manually.")
+    elif st.session_state.use_text and not updated.get("manual_topic").strip():
+        st.error("Please enter a topic or text when using the manual input option.")
+    else:
+        with st.spinner("Generating quiz... please wait"):
+            # The LangGraph process begins
+            updated = extract_text_node(updated)
+            if updated.get("raw_text"):
+                updated = generate_quiz_node(updated)
+                display_quiz_node(updated)

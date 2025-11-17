@@ -1,7 +1,4 @@
-faiss-cpu
-sentence-transformers
 streamlit
-numpy
 PyPDF2
 python-docx
 regex
@@ -9,3 +6,7 @@ langchain-google-genai
 langgraph
 chromadb
 os
+langchain-chroma
+langchain_text_splitters
+langchain_core
+langchain

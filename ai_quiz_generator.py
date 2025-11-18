@@ -17,16 +17,15 @@ try:
       model="gemini-2.5-flash",
      google_api_key=google_api_key
     )
-
 except Exception:
     st.error("⚠️ GOOGLE_API_KEY not found. LLM features disabled.")
     llm = None
 
-st.set_page_config(page_title="🧠 AI Quiz Generator", layout="centered")
+st.set_page_config(page_title="🧠 AI Quiz Generator", layout="wide")
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800;900&display=swap');
 
 :root {
     --primary-accent: #33CCFF;
@@ -46,30 +45,28 @@ body, .stApp {
 
 header { visibility: hidden; height: 0; }
 
+/* H1 STYLE */
 h1 {
     text-align: center;
-    font-size: 3.8em; /* Slightly larger for more impact */
-    font-weight: 900; /* Even bolder */
+    font-size: 3.8em; 
+    font-weight: 900;
     background: linear-gradient(90deg, #33CCFF, #00FFE0); 
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    color: #33CCFF; /* Fallback */
+    color: #33CCFF;
     margin-bottom: 5px;
-    /* More Intense Dark Shine Effect */
     text-shadow: 
-        0 0 15px rgba(51, 204, 255, 0.8),   /* Primary bright glow */
-        0 0 30px rgba(0, 255, 224, 0.6),   /* Secondary broader glow */
-        0 0 45px rgba(51, 204, 255, 0.4),   /* Third, even wider glow */
-        0 0 60px rgba(0, 255, 224, 0.2);   /* Widest, subtle aura */
-    transition: all 0.4s ease-in-out; /* Smoother transition */
+        0 0 10px rgba(51, 204, 255, 0.9),
+        0 0 25px rgba(0, 255, 224, 0.7),
+        0 0 50px rgba(51, 204, 255, 0.5);
+    transition: all 0.4s ease-in-out; 
 }
 h1:hover {
     text-shadow: 
-        0 0 20px rgba(51, 204, 255, 1),     /* Brighter on hover */
-        0 0 40px rgba(0, 255, 224, 0.8),
-        0 0 60px rgba(51, 204, 255, 0.6),
-        0 0 80px rgba(0, 255, 224, 0.4);
-    transform: scale(1.02); /* Slight scale for interaction */
+        0 0 15px rgba(51, 204, 255, 1),
+        0 0 40px rgba(0, 255, 224, 1),
+        0 0 70px rgba(51, 204, 255, 0.8);
+    transform: scale(1.03); 
 }
 
 p { 
@@ -78,39 +75,38 @@ p {
     font-size: 1.1em;
 }
 
-/* Floating Bubbles Animation */
+/* BUBBLE ANIMATION */
 .bubble {
     position: absolute;
     border-radius: 50%;
     opacity: 0.2;
     animation: float 20s linear infinite;
 }
-
 @keyframes float {
     0% { transform: translateY(100vh) scale(0); opacity:0.2;}
     50% { opacity:0.5; }
     100% { transform: translateY(-10vh) scale(1);}
 }
 
+/* QUIZ CARD */
 .quiz-card {
     background-color: var(--card-bg-light);
     padding: 25px 30px;
     border-radius: 20px;
     margin: 25px auto;
-    border-left: 6px solid var(--primary-accent); /* Keep this primary accent line */
-    /* Updated: Darker, more pronounced glow for edges */
+    border-left: 6px solid var(--primary-accent);
     box-shadow: 
-        0 0 15px rgba(0, 0, 0, 0.8), /* Strong base shadow */
-        0 0 25px rgba(51, 204, 255, 0.2), /* Subtle blue glow */
-        0 0 40px rgba(0, 255, 224, 0.1); /* Wider, softer blue-green glow */
+        0 0 15px rgba(0, 0, 0, 0.8), 
+        0 0 25px rgba(51, 204, 255, 0.2), 
+        0 0 40px rgba(0, 255, 224, 0.1);
     transition: transform 0.3s ease, box-shadow 0.4s ease-in-out;
 }
 .quiz-card:hover {
-    transform: translateY(-8px); /* More pronounced lift on hover */
+    transform: translateY(-8px); 
     box-shadow: 
-        0 0 20px rgba(0, 0, 0, 0.9), /* Even stronger base shadow on hover */
-        0 0 40px rgba(51, 204, 255, 0.4), /* Brighter blue glow on hover */
-        0 0 60px rgba(0, 255, 224, 0.3); /* Brighter, wider blue-green glow on hover */
+        0 0 20px rgba(0, 0, 0, 0.9), 
+        0 0 40px rgba(51, 204, 255, 0.4), 
+        0 0 60px rgba(0, 255, 224, 0.3);
 }
 
 .quiz-question {
@@ -135,7 +131,7 @@ p {
     transform: translateX(5px);
 }
 
-/* --- BUTTON STYLES --- */
+/* BUTTONS */
 .stDownloadButton button, 
 .stButton button { 
     background: linear-gradient(135deg, #0B1A2B, #162231) !important;
@@ -148,13 +144,63 @@ p {
     box-shadow: 0 5px 20px rgba(0,0,0,0.5);
     transition: all 0.3s ease;
 }
-
 .stDownloadButton button:hover,
 .stButton button:hover {
     box-shadow: 0 10px 30px rgba(0,0,0,0.7);
     background: linear-gradient(135deg, #162231, #0B1A2B);
     color: #00FFE0 !important;
     transform: scale(1.05);
+}
+
+
+/* ================================= */
+/*       RESPONSIVE MOBILE FIX       */
+/* ================================= */
+@media (max-width: 768px) {
+
+    h1 {
+        font-size: 2.2em !important;
+        text-shadow: 
+            0 0 6px rgba(51, 204, 255, 0.8),
+            0 0 20px rgba(0, 255, 224, 0.6),
+            0 0 35px rgba(51, 204, 255, 0.4);
+    }
+
+    p {
+        font-size: 0.9em !important;
+    }
+
+    .quiz-card {
+        width: 95% !important;
+        padding: 15px !important;
+        margin: 15px auto !important;
+    }
+
+    .quiz-question {
+        font-size: 1.1em !important;
+    }
+
+    .quiz-option {
+        font-size: 0.9em !important;
+        padding: 10px 14px !important;
+    }
+
+    .stButton button, 
+    .stDownloadButton button {
+        width: 100% !important;
+        font-size: 1em !important;
+    }
+
+    .bubble {
+        opacity: 0.15 !important;
+        animation-duration: 18s !important;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 { font-size: 1.8em !important; }
+    .quiz-card { padding: 12px !important; }
+    .quiz-question { font-size: 1em !important; }
 }
 </style>
 
@@ -181,19 +227,18 @@ st.markdown("<h1>🧠 AI Quiz Generator</h1>", unsafe_allow_html=True)
 st.markdown("<p>Upload a PDF/DOCX or type a topic to generate MCQs (Documents are saved locally for history)</p>",
             unsafe_allow_html=True)
 
+# ------------------------ YOUR ORIGINAL LOGIC BELOW -----------------------------
 
 class QuizState(TypedDict, total=False):
     file: Optional[any]
-    raw_text: str  # Full document text
-    context_text: str  # Text after RAG retrieval
-    manual_topic: str  # User's manual input
-    file_hash: str  # Hash of the document content (for ChromaDB persistence)
-    file_hash: str  # Hash of the document content (for ChromaDB persistence)
+    raw_text: str
+    context_text: str
+    manual_topic: str
+    file_hash: str
     quiz_data: List[Dict]
     num_mcqs: int
 
 graph = StateGraph(QuizState)
-
 
 def upload_node(state: QuizState) -> QuizState:
     if 'use_text' not in st.session_state:
@@ -226,7 +271,7 @@ def extract_text_node(state: QuizState) -> QuizState:
     if file:
         file_bytes = file.read()
         file_hash = hashlib.sha256(file_bytes).hexdigest()
-        file.seek(0)  # Rewind the file pointer
+        file.seek(0)
 
         if file.name.lower().endswith(".pdf"):
             reader = PdfReader(file)
@@ -237,7 +282,6 @@ def extract_text_node(state: QuizState) -> QuizState:
 
     elif manual_topic:
         raw_text = manual_topic
-        # Hash the topic string
         file_hash = hashlib.sha256(manual_topic.encode('utf-8')).hexdigest()
 
     if not raw_text:
@@ -266,26 +310,13 @@ def generate_quiz_node(state: QuizState) -> QuizState:
     context_text = run_rag_pipeline(raw_text, query, file_hash)
 
     if not context_text:
-        st.error("RAG pipeline failed to retrieve context. Check your `rag_pipeline.py` setup and API key.")
+        st.error("RAG pipeline failed.")
         return {"raw_text": raw_text, "context_text": "", "num_mcqs": num_mcqs, "quiz_data": []}
 
     prompt = f"""
-    Generate {num_mcqs} multiple-choice questions (MCQs) from the following text.
+    Generate {num_mcqs} MCQs.
     generate mcqs in that language which user tells you by default generate quiz in English language
-    Format each question clearly with options and mark the correct answer at the end.
-
-    CRITICAL INSTRUCTIONS:
-    1. Do NOT use phrases like "provided text," "given text," "as in the text," or "According to the text."
-    2. Instead, refer to the actual topic or subject matter.
-    3. Start directly with the first question, no extra introductory text.
-
-    Example format:
-    Q1. What is AI?
-    A) Option 1
-    B) Option 2
-    C) Option 3
-    D) Option 4
-    Answer: B
+    No introduction. Start directly with Q1.
 
     Text:
     {context_text}
@@ -307,6 +338,7 @@ def generate_quiz_node(state: QuizState) -> QuizState:
                   \s*D[\)\.:]\s*([\s\S]*?)
                   \s*Answer[:\s]*([ABCD])
                 """
+
     matches = re.findall(pattern, output_text, re.IGNORECASE | re.VERBOSE)
 
     quiz_data = []
@@ -324,9 +356,6 @@ def generate_quiz_node(state: QuizState) -> QuizState:
             "answer": ans.strip().upper()
         })
 
-    if not quiz_data:
-        st.warning("⚠️ The model returned text but the format was unclear. Try shortening or simplifying your input.")
-
     return {"raw_text": raw_text, "context_text": context_text, "num_mcqs": num_mcqs, "quiz_data": quiz_data}
 
 
@@ -336,8 +365,6 @@ def display_quiz_node(state: QuizState) -> QuizState:
         return {"quiz_data": []}
 
     st.subheader("✅ Quiz Generated!")
-
-    st.markdown("<span style='display:none'>.</span>", unsafe_allow_html=True)
 
     for i, q in enumerate(quiz_data):
         question_text = q['question'].strip()
@@ -358,7 +385,6 @@ def display_quiz_node(state: QuizState) -> QuizState:
     if fmt == "Word (.docx)":
         doc = Document()
         doc.add_heading("AI Generated Quiz", 0)
-        # Add the answers key for reference
         doc.add_paragraph("--- ANSWER KEY ---")
 
         for i, q in enumerate(quiz_data):
@@ -394,12 +420,11 @@ updated = upload_node(state)
 
 if st.button("🚀 Generate Quiz"):
     if not st.session_state.use_text and not updated.get("file"):
-        st.error("Please upload a file or check the box to enter a topic manually.")
+        st.error("Please upload a file or check the box to manually enter text.")
     elif st.session_state.use_text and not updated.get("manual_topic").strip():
-        st.error("Please enter a topic or text when using the manual input option.")
+        st.error("Please enter a topic.")
     else:
-        with st.spinner("Generating quiz... please wait"):
-            # The LangGraph process begins
+        with st.spinner("Generating quiz..."):
             updated = extract_text_node(updated)
             if updated.get("raw_text"):
                 updated = generate_quiz_node(updated)

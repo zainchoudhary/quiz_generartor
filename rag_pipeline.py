@@ -1,4 +1,4 @@
-import os
+import streamlit as st
 import chromadb
 from typing import Optional
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -7,7 +7,6 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
 google_api_key = st.secrets["GOOGLE_API_KEY"]
-api_key = os.environ["GOOGLE_API_KEY"]
 
 PERSIST_DIRECTORY = "./chroma_db"
 COLLECTION_NAME = "quiz_generator_documents"

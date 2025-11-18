@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 from PyPDF2 import PdfReader
 from docx import Document
 from io import BytesIO
@@ -11,7 +10,6 @@ from langgraph.graph import StateGraph, END
 from rag_pipeline import run_rag_pipeline
 
 google_api_key = st.secrets["GOOGLE_API_KEY"]
-api_key = os.environ["GOOGLE_API_KEY"]
 
 try:
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")

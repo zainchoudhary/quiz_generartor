@@ -9,9 +9,8 @@ from typing import TypedDict, Optional, List, Dict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 from rag_pipeline import run_rag_pipeline
-from dotenv import load_dotenv
 
-load_dotenv()
+google_api_key = st.secrets["GOOGLE_API_KEY"]
 api_key = os.environ["GOOGLE_API_KEY"]
 
 try:

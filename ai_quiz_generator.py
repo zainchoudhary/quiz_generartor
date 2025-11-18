@@ -313,10 +313,19 @@ def generate_quiz_node(state: QuizState) -> QuizState:
         st.error("RAG pipeline failed.")
         return {"raw_text": raw_text, "context_text": "", "num_mcqs": num_mcqs, "quiz_data": []}
 
-    prompt = f"""
-    Generate {num_mcqs} MCQs.
-    generate mcqs in that language which user tells you by default generate quiz in English language
-    No introduction. Start directly with Q1.
+    prompt = f""" Generate {num_mcqs} multiple-choice questions (MCQs) from the following text. 
+    generate mcqs in that language which user tells you by default generate quiz in English language 
+    Format each question clearly with options and mark the correct answer at the end. 
+    CRITICAL INSTRUCTIONS:
+     1. Do NOT use phrases like "provided text," "given text," "as in the text," or "According to the text." 
+     2. Instead, refer to the actual topic or subject matter. 
+     3. Start directly with the first question, no extra introductory text. 
+     Example format: Q1. What is AI? 
+     A) Option 1 
+     B) Option 2 
+     C) Option 3 
+     D) Option 4 
+     Answer: B
 
     Text:
     {context_text}

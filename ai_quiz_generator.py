@@ -247,6 +247,7 @@ def generate_quiz_node(state: QuizState) -> QuizState:
 
     prompt = f"""
     Generate {num_mcqs} multiple-choice questions (MCQs) from the following text.
+    generate mcqs in that language which user tells you by default generate quiz in English language
     Format each question clearly with options and mark the correct answer at the end.
 
     CRITICAL INSTRUCTIONS:

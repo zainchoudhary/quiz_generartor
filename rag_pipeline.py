@@ -13,7 +13,10 @@ COLLECTION_NAME = "quiz_generator_documents"
 
 try:
 
-    embedding_model = GoogleGenerativeAIEmbeddings(model="gemini-embedding-001")
+    embedding_model = GoogleGenerativeAIEmbeddings(
+      model="gemini-embedding-001",
+      google_api_key=google_api_key
+    )
     chroma_client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
 
 except Exception as e:

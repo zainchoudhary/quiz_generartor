@@ -12,7 +12,11 @@ from rag_pipeline import run_rag_pipeline
 google_api_key = st.secrets["GOOGLE_API_KEY"]
 
 try:
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+    llm = ChatGoogleGenerativeAI(
+      model="gemini-2.5-flash",
+     google_api_key=google_api_key
+    )
+
 except Exception:
     st.error("⚠️ GOOGLE_API_KEY not found. LLM features disabled.")
     llm = None

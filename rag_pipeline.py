@@ -6,8 +6,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
-
-google_api_key = os.environ["GOOGLE_API_KEY"]
+google_api_key = os.environ.get("GOOGLE_API_KEY")
 
 PERSIST_DIRECTORY = "./chroma_db"
 COLLECTION_NAME = "quiz_generator_documents"

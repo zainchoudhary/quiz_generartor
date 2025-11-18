@@ -48,10 +48,28 @@ header { visibility: hidden; height: 0; }
 
 h1 {
     text-align: center;
-    font-size: 2.8em;
-    font-weight: 700;
-    color: var(--primary-accent);
+    font-size: 3.8em; /* Slightly larger for more impact */
+    font-weight: 900; /* Even bolder */
+    background: linear-gradient(90deg, #33CCFF, #00FFE0); 
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: #33CCFF; /* Fallback */
     margin-bottom: 5px;
+    /* More Intense Dark Shine Effect */
+    text-shadow: 
+        0 0 15px rgba(51, 204, 255, 0.8),   /* Primary bright glow */
+        0 0 30px rgba(0, 255, 224, 0.6),   /* Secondary broader glow */
+        0 0 45px rgba(51, 204, 255, 0.4),   /* Third, even wider glow */
+        0 0 60px rgba(0, 255, 224, 0.2);   /* Widest, subtle aura */
+    transition: all 0.4s ease-in-out; /* Smoother transition */
+}
+h1:hover {
+    text-shadow: 
+        0 0 20px rgba(51, 204, 255, 1),     /* Brighter on hover */
+        0 0 40px rgba(0, 255, 224, 0.8),
+        0 0 60px rgba(51, 204, 255, 0.6),
+        0 0 80px rgba(0, 255, 224, 0.4);
+    transform: scale(1.02); /* Slight scale for interaction */
 }
 
 p { 
@@ -74,19 +92,25 @@ p {
     100% { transform: translateY(-10vh) scale(1);}
 }
 
-/* Quiz Card Styles */
 .quiz-card {
     background-color: var(--card-bg-light);
     padding: 25px 30px;
     border-radius: 20px;
     margin: 25px auto;
-    border-left: 6px solid var(--primary-accent);
-    box-shadow: 0 15px 40px rgba(0,0,0,0.7);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border-left: 6px solid var(--primary-accent); /* Keep this primary accent line */
+    /* Updated: Darker, more pronounced glow for edges */
+    box-shadow: 
+        0 0 15px rgba(0, 0, 0, 0.8), /* Strong base shadow */
+        0 0 25px rgba(51, 204, 255, 0.2), /* Subtle blue glow */
+        0 0 40px rgba(0, 255, 224, 0.1); /* Wider, softer blue-green glow */
+    transition: transform 0.3s ease, box-shadow 0.4s ease-in-out;
 }
 .quiz-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+    transform: translateY(-8px); /* More pronounced lift on hover */
+    box-shadow: 
+        0 0 20px rgba(0, 0, 0, 0.9), /* Even stronger base shadow on hover */
+        0 0 40px rgba(51, 204, 255, 0.4), /* Brighter blue glow on hover */
+        0 0 60px rgba(0, 255, 224, 0.3); /* Brighter, wider blue-green glow on hover */
 }
 
 .quiz-question {

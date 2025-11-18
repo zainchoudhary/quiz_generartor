@@ -1,4 +1,4 @@
-import streamlit as st
+import os
 import chromadb
 from typing import Optional
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -6,17 +6,15 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
-google_api_key = st.secrets["GOOGLE_API_KEY"]
+
+google_api_key = os.environ["GOOGLE_API_KEY"]
 
 PERSIST_DIRECTORY = "./chroma_db"
 COLLECTION_NAME = "quiz_generator_documents"
 
 try:
 
-    embedding_model = GoogleGenerativeAIEmbeddings(
-      model="gemini-embedding-001",
-      google_api_key=google_api_key
-    )
+    embedding_model = GoogleGenerativeAIEmbeddings(model="gemini-embedding-001")
     chroma_client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
 
 except Exception as e:
@@ -83,14 +81,19 @@ def retrieve_context(vector_store: Chroma, topic: str, k: int = 5) -> str:
 
 
 def run_rag_pipeline(text: str, topic: str, file_hash: str) -> str:
-
+    """
+    Main function to run the RAG process with persistence check.
+    """
     if not text and topic:
+        # User entered a manual topic
         return topic
 
     if text:
+        # 1. Index the document (will retrieve existing if hash matches)
         vector_store = index_document(text, file_hash)
 
         if vector_store:
+            # 2. Retrieve relevant context
             query = topic if topic else text[:100]
             retrieved_context = retrieve_context(vector_store, query, k=5)
 

@@ -54,7 +54,6 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800;900&display=swap');
 
-
 :root {
     --primary-accent: #33CCFF;
     --secondary-dark: #0B1A2B;
@@ -74,21 +73,16 @@ body, .stApp {
 header { visibility: hidden; height: 0; }
 
 /* ============================= */
-/* 🔥 FIX SIDEBAR WIDTH & LOCK */
+/* SIDEBAR STYLE + RESPONSIVE */
 /* ============================= */
-
 section[data-testid="stSidebar"] {
     width: 380px !important;
     min-width: 380px !important;
     max-width: 380px !important;
     resize: none !important;
-
     background: linear-gradient(180deg, #0B1A2B, #162231) !important;
     border-right: 2px solid #33CCFF;
-    box-shadow: 
-        0 0 25px rgba(0,255,224,0.3),
-        0 0 60px rgba(51,204,255,0.15) inset;
-
+    box-shadow: 0 0 25px rgba(0,255,224,0.3), 0 0 60px rgba(51,204,255,0.15) inset;
     backdrop-filter: blur(14px);
 }
 
@@ -97,102 +91,149 @@ section[data-testid="stSidebar"] > div:first-child {
     overflow: auto !important;
 }
 
-/* Neon animated sidebar heading without bottom line */
-.sidebar-header-animated {
-    font-size: 1.7em;           /* thoda chhota */
-    font-weight: 600;            /* halka bold */
-    color: #E9F6FB;              /* lighter cyan */
-    text-align: center;
-    padding: 10px 0;
-    margin-bottom: 15px;
-    text-shadow: 0 0 4px #66e0ff, 0 0 4px #99f0ff; /* lighter glow */
-    animation: neonPulse 1.5s ease-in-out infinite alternate;
-}
-
-
-/* Mobile Sidebar */
 @media (max-width: 800px) {
-    .right-login-box {
-        transform: translateX(0px);  /* back to center on mobile */
+    section[data-testid="stSidebar"] {
+        width: 300px !important;
+        min-width: 300px !important;
+        max-width: 300px !important;
     }
 }
 
-/* --- H1 STYLE --- */
+/* ============================= */
+/* Sidebar header animated neon */
+/* ============================= */
+.sidebar-header-animated {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #E9F6FB;
+    text-align: center;
+    padding: 8px 0;
+    margin-bottom: 12px;
+    text-shadow: 0 0 4px #66e0ff, 0 0 4px #99f0ff;
+    animation: neonPulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes neonPulse {
+    0% { text-shadow: 0 0 2px #66e0ff, 0 0 6px #99f0ff; }
+    100% { text-shadow: 0 0 10px #00FFE0, 0 0 20px #33CCFF; }
+}
+
+/* ============================= */
+/* Main H1 & P Responsive */
+/* ============================= */
 h1 {
     text-align: center;
-    font-size: 3.8em; 
+    font-size: 3.0em;
     font-weight: 900;
-    background: linear-gradient(90deg, #33CCFF, #00FFE0); 
+    background: linear-gradient(90deg, #33CCFF, #00FFE0);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 5px;
-
-    text-shadow: 
-        0 0 10px rgba(51, 204, 255, 0.9),
-        0 0 25px rgba(0, 255, 224, 0.7),
-        0 0 50px rgba(51, 204, 255, 0.5);
+    margin-bottom: 8px;
+    text-shadow: 0 0 10px rgba(51, 204, 255, 0.9), 0 0 25px rgba(0, 255, 224, 0.7);
 }
 
-p { 
-    text-align: center; 
+p {
+    text-align: center;
     color: var(--muted-text);
-    font-size: 1.1em;
+    font-size: 1em;
+    margin-bottom: 15px;
 }
 
-/* Floating Bubbles */
-.bubble {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0.2;
-    animation: float 20s linear infinite;
-}
-
-@keyframes float {
-    0% { transform: translateY(100vh) scale(0); opacity:0.2;}
-    50% { opacity:0.5; }
-    100% { transform: translateY(-10vh) scale(1);}
-}
-
-/* --- QUIZ CARD --- */
+/* ============================= */
+/* QUIZ CARD */
+/* ============================= */
 .quiz-card {
     background-color: var(--card-bg-light);
-    padding: 25px 30px;
-    border-radius: 20px;
-    margin: 25px auto;
+    padding: 20px 20px;
+    border-radius: 16px;
+    margin: 15px auto;
     border-left: 6px solid var(--primary-accent);
-    box-shadow: 
-        0 0 15px rgba(0, 0, 0, 0.8), 
-        0 0 25px rgba(51, 204, 255, 0.2), 
-        0 0 40px rgba(0, 255, 224, 0.1); 
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.6), 0 0 25px rgba(51, 204, 255, 0.2);
 }
 
 .quiz-question {
-    font-size: 1.35em;
+    font-size: 1.2em;
     font-weight: 600;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
     color: var(--primary-accent);
 }
 
 .quiz-option {
-    padding: 12px 20px;
+    padding: 10px 15px;
     background-color: var(--secondary-dark);
-    border-radius: 12px;
-    margin-bottom: 10px;
+    border-radius: 10px;
+    margin-bottom: 8px;
     cursor: pointer;
     color: var(--text-color);
+    font-size: 0.95em;
 }
 
-/* --- BUTTON --- */
+/* ============================= */
+/* BUTTON STYLE */
+/* ============================= */
 .stDownloadButton button, 
 .stButton button { 
     background: linear-gradient(135deg, #0B1A2B, #162231) !important;
     color: #33CCFF !important;
     font-weight: 700;
-    border-radius: 20px !important;
+    border-radius: 18px !important;
     border: 2px solid #33CCFF !important;
 }
 
+/* ============================= */
+/* LOGIN SCREEN - RESPONSIVE */
+/* ============================= */
+.right-login-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed; 
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(22, 34, 49, 0.0); 
+    z-index: 9999; 
+    pointer-events: none;
+    transform: translateX(200px);
+}
+
+.animated-message {
+    background: linear-gradient(135deg, #162231, #0B1A2B);
+    color: #33CCFF;
+    border: 2px solid #00FFE0;
+    padding: 70px 100px;
+    border-radius: 22px;
+    font-size: 2.5em;
+    font-weight: 800;
+    max-width: 90%;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0, 255, 224, 0.5), 0 0 20px rgba(51, 204, 255, 0.8);
+    animation: fadein 1s, pulse 2s infinite alternate;
+}
+
+@media (max-width: 800px) {
+    .right-login-box { transform: translateX(0px); }
+    .animated-message {
+        padding: 40px 20px; 
+        font-size: 1.8em;
+    }
+
+    .quiz-card { padding: 15px 10px; }
+    .quiz-question { font-size: 1em; }
+    .quiz-option { font-size: 0.85em; padding: 8px 10px; }
+    h1 { font-size: 2.5em; }
+    p { font-size: 0.9em; }
+}
+
+/* ============================= */
+/* Floating Bubbles Mobile */
+@media (max-width: 800px) {
+    .bubble { width: 15px !important; height: 15px !important; opacity:0.1; }
+}
+
 </style>
+
 
 <div id="bubbles"></div>
 
